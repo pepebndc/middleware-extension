@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Uniswap 1% Fee Injection (Development)",
+  "version": "1.0.0",
+  "description": "Automatically adds 1% fee to Uniswap v4 Universal Router transactions - Development Version",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": [
+    "https://app.uniswap.org/*",
+    "file:///*",
+    "http://localhost/*",
+    "https://localhost/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.uniswap.org/*",
+        "file:///*",
+        "http://localhost/*",
+        "https://localhost/*"
+      ],
+      "js": ["utils.js", "decode.js", "injector.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["utils.js", "decode.js", "injector.js"],
+      "matches": [
+        "https://app.uniswap.org/*",
+        "file:///*",
+        "http://localhost/*",
+        "https://localhost/*"
+      ]
+    }
+  ]
+}

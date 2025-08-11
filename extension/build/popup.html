@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap Fee Injector</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🦄</div>
+                <h1>Fee Injector</h1>
+            </div>
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span class="status-text">Active</span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
+            <button class="tab-btn" data-tab="history">History</button>
+            <button class="tab-btn" data-tab="debug">Debug</button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard">
+            <div class="section">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalTransactions">0</div>
+                            <div class="stat-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalFees">$0.00</div>
+                            <div class="stat-label">Fees Collected</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="successRate">100%</div>
+                            <div class="stat-label">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Recent Activity</h2>
+                <div class="activity-list" id="activityList">
+                    <div class="activity-item">
+                        <div class="activity-icon success">✅</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Fee Injection Ready</div>
+                            <div class="activity-time">Extension loaded and monitoring</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Quick Actions</h2>
+                <div class="actions-grid">
+                    <button class="action-btn" id="testExtension">
+                        <div class="action-icon">🧪</div>
+                        <div class="action-text">Test Extension</div>
+                    </button>
+                    <button class="action-btn" id="clearData">
+                        <div class="action-icon">🗑️</div>
+                        <div class="action-text">Clear Data</div>
+                    </button>
+                    <button class="action-btn" id="exportData">
+                        <div class="action-icon">📥</div>
+                        <div class="action-text">Export Data</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settings">
+            <div class="section">
+                <h2>Fee Configuration</h2>
+                <div class="form-group">
+                    <label for="feePercentage">Fee Percentage</label>
+                    <div class="input-group">
+                        <input type="number" id="feePercentage" min="0" max="100" step="0.01" value="1.00">
+                        <span class="input-suffix">%</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="feeRecipient">Fee Recipient Address</label>
+                    <input type="text" id="feeRecipient" placeholder="0x..." value="0x237D4cfE852DB65d6b170f4F9BDcB09acA2375Ed">
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Extension Settings</h2>
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <label for="enableExtension">Enable Fee Injection</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="enableExtension" checked>
+                            <span class="slider"></span>
+                        </div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="enableLogging">Enable Console Logging</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="enableLogging" checked>
+                            <span class="slider"></span>
+                        </div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="enableNotifications">Enable Notifications</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="enableNotifications" checked>
+                            <span class="slider"></span>
+                        </div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="enableAutoUpdate">Auto-update Settings</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="enableAutoUpdate" checked>
+                            <span class="slider"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Advanced Settings</h2>
+                <div class="form-group">
+                    <label for="universalRouterAddress">Universal Router Address</label>
+                    <input type="text" id="universalRouterAddress" placeholder="0x..." value="0x66a9893cc07d91d95644aedd05d03f95e1dba8af">
+                </div>
+                <div class="form-group">
+                    <label for="supportedTokens">Supported Tokens (comma-separated)</label>
+                    <textarea id="supportedTokens" placeholder="0x..., 0x...">0xdac17f958d2ee523a2206206994597c13d831ec7,0xa0b86a33e6c3c73429c7e8adeef8f1c6b21d6c43,0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2</textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                    <button class="btn btn-secondary" id="resetSettings">Reset to Default</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-content" id="history">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Transaction History</h2>
+                    <div class="filter-controls">
+                        <select id="filterType">
+                            <option value="all">All Transactions</option>
+                            <option value="success">Successful</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                        <button class="btn btn-small" id="refreshHistory">Refresh</button>
+                    </div>
+                </div>
+                <div class="transaction-list" id="transactionList">
+                    <div class="transaction-item">
+                        <div class="transaction-status success">✅</div>
+                        <div class="transaction-details">
+                            <div class="transaction-title">ETH → USDT Swap</div>
+                            <div class="transaction-meta">
+                                <span class="transaction-amount">Fee: 10.00 USDT</span>
+                                <span class="transaction-time">2 minutes ago</span>
+                            </div>
+                        </div>
+                        <div class="transaction-actions">
+                            <button class="btn btn-small" onclick="viewTransaction('0x123...')">View</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Tab -->
+        <div class="tab-content" id="debug">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Debug Console</h2>
+                    <div class="debug-controls">
+                        <button class="btn btn-small" id="clearLogs">Clear Logs</button>
+                        <button class="btn btn-small" id="downloadLogs">Download</button>
+                    </div>
+                </div>
+                <div class="debug-console" id="debugConsole">
+                    <div class="log-entry info">
+                        <span class="log-time">12:34:56</span>
+                        <span class="log-level">INFO</span>
+                        <span class="log-message">🔥 Uniswap Fee Injector loaded</span>
+                    </div>
+                    <div class="log-entry info">
+                        <span class="log-time">12:34:57</span>
+                        <span class="log-level">INFO</span>
+                        <span class="log-message">✅ Ethereum request hook installed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Extension Info</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Version</div>
+                        <div class="info-value">1.0.0</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Mode</div>
+                        <div class="info-value">Development</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Universal Router</div>
+                        <div class="info-value">0x66a9...8af</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Fee Recipient</div>
+                        <div class="info-value">0x237D...5Ed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Diagnostic Tools</h2>
+                <div class="diagnostic-tools">
+                    <button class="btn btn-primary" id="testConnection">Test Connection</button>
+                    <button class="btn btn-secondary" id="validateSettings">Validate Settings</button>
+                    <button class="btn btn-secondary" id="checkPermissions">Check Permissions</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-info">
+                <span>🦄 Uniswap Fee Injector v1.0.0</span>
+                <span>•</span>
+                <span id="connectionStatus">Connected</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification System -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html> 

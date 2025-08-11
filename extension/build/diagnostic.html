@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .diagnostic-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .code-block {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .step-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Extension Diagnostic Tool</h1>
+    
+    <div class="diagnostic-box">
+        <h2>🚨 Important Note</h2>
+        <div class="status warning">
+            <strong>Extension Restriction:</strong> The extension is configured to only run on https://app.uniswap.org/* domains. 
+            This diagnostic page cannot directly test the extension functions.
+        </div>
+    </div>
+
+    <div class="diagnostic-box">
+        <h2>📋 Step 1: Check Extension Installation</h2>
+        <div class="step-list">
+            <ol>
+                <li><strong>Open Chrome</strong> and go to <code>chrome://extensions/</code></li>
+                <li><strong>Look for</strong> "Uniswap 1% Fee Injection" in the list</li>
+                <li><strong>Verify</strong> the extension is <span style="color: green;">enabled</span> (toggle should be blue/on)</li>
+                <li><strong>Check</strong> if there are any red error messages</li>
+            </ol>
+        </div>
+        <div id="extension-check" class="status info">
+            Click the button below to copy the extension path to your clipboard
+        </div>
+        <button onclick="copyExtensionPath()">Copy Extension Path</button>
+    </div>
+
+    <div class="diagnostic-box">
+        <h2>📋 Step 2: Check for Errors</h2>
+        <div class="step-list">
+            <ol>
+                <li>Go to <code>chrome://extensions/</code></li>
+                <li>Find your extension and click <strong>"Details"</strong></li>
+                <li>Look for any error messages in red</li>
+                <li>Check the <strong>"Inspect views"</strong> section</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="diagnostic-box">
+        <h2>📋 Step 3: Test on Uniswap</h2>
+        <div class="step-list">
+            <p>Since the extension only runs on Uniswap, test it there:</p>
+            <ol>
+                <li><strong>Go to</strong> <a href="https://app.uniswap.org/" target="_blank">https://app.uniswap.org/</a></li>
+                <li><strong>Open Developer Tools</strong> (F12 or right-click → Inspect)</li>
+                <li><strong>Go to Console tab</strong></li>
+                <li><strong>Look for</strong> this message: <code>🔥 Uniswap Fee Injector loaded</code></li>
+                <li><strong>If you see it</strong> → Extension is working! ✅</li>
+                <li><strong>If you don't see it</strong> → Extension is not running ❌</li>
+            </ol>
+        </div>
+        <button onclick="openUniswap()">Open Uniswap in New Tab</button>
+    </div>
+
+    <div class="diagnostic-box">
+        <h2>📋 Step 4: Common Issues & Solutions</h2>
+        
+        <h3>❌ Extension Not Visible in chrome://extensions/</h3>
+        <div class="code-block">
+            <strong>Solution:</strong>
+            <br>1. Make sure "Developer mode" is enabled (toggle in top right)
+            <br>2. Click "Load unpacked" and select the extension folder
+            <br>3. The extension folder should contain manifest.json
+        </div>
+
+        <h3>❌ Extension Shows Errors</h3>
+        <div class="code-block">
+            <strong>Solution:</strong>
+            <br>1. Check if all files are present: manifest.json, injector.js, decode.js, utils.js
+            <br>2. Try refreshing the extension (click refresh icon)
+            <br>3. Remove and re-add the extension
+        </div>
+
+        <h3>❌ No Console Messages on Uniswap</h3>
+        <div class="code-block">
+            <strong>Solution:</strong>
+            <br>1. Hard refresh the page (Ctrl+F5 or Cmd+Shift+R)
+            <br>2. Check if the extension is enabled
+            <br>3. Try disabling and re-enabling the extension
+        </div>
+
+        <h3>❌ Extension Works but No Fee Injection</h3>
+        <div class="code-block">
+            <strong>Solution:</strong>
+            <br>1. Make sure you're trying to swap (not just browsing)
+            <br>2. Check console for error messages
+            <br>3. Verify the transaction is going to the Universal Router
+        </div>
+    </div>
+
+    <div class="diagnostic-box">
+        <h2>📋 Step 5: Manual Verification</h2>
+        <div class="step-list">
+            <p>You can manually verify the extension files:</p>
+            <ol>
+                <li><strong>Check extension folder contains:</strong>
+                    <ul>
+                        <li>manifest.json</li>
+                        <li>injector.js</li>
+                        <li>decode.js</li>
+                        <li>utils.js</li>
+                    </ul>
+                </li>
+                <li><strong>Verify manifest.json</strong> has "Uniswap 1% Fee Injection" as name</li>
+                <li><strong>Check fee recipient</strong> is: <code>0x237D4cfE852DB65d6b170f4F9BDcB09acA2375Ed</code></li>
+            </ol>
+        </div>
+        <button onclick="showFileCheck()">Show File Verification</button>
+        <div id="file-verification" style="display: none;">
+            <div class="code-block">
+                <strong>Expected Extension Structure:</strong><br>
+                extension/<br>
+                ├── manifest.json<br>
+                ├── injector.js<br>
+                ├── decode.js<br>
+                ├── utils.js<br>
+                └── README.md<br>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyExtensionPath() {
+            const path = window.location.pathname.replace('/diagnostic.html', '');
+            navigator.clipboard.writeText(path).then(() => {
+                document.getElementById('extension-check').innerHTML = 
+                    '<strong>✅ Extension path copied to clipboard!</strong><br>' +
+                    'Use this path when selecting "Load unpacked" in Chrome';
+                document.getElementById('extension-check').className = 'status success';
+            }).catch(() => {
+                document.getElementById('extension-check').innerHTML = 
+                    '<strong>Extension path:</strong> ' + path + '<br>' +
+                    'Copy this path and use it when selecting "Load unpacked" in Chrome';
+                document.getElementById('extension-check').className = 'status info';
+            });
+        }
+
+        function openUniswap() {
+            window.open('https://app.uniswap.org/', '_blank');
+        }
+
+        function showFileCheck() {
+            const div = document.getElementById('file-verification');
+            div.style.display = div.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Show current location info
+        document.addEventListener('DOMContentLoaded', function() {
+            const pathInfo = document.createElement('div');
+            pathInfo.className = 'status info';
+            pathInfo.innerHTML = '<strong>Current Location:</strong> ' + window.location.pathname;
+            document.querySelector('.diagnostic-box').appendChild(pathInfo);
+        });
+    </script>
+</body>
+</html> 

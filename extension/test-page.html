@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap Fee Injector Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log-area {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Uniswap Fee Injector Test Page</h1>
+        
+        <div class="test-section">
+            <h3>Extension Status</h3>
+            <div id="extension-status" class="status info">Checking extension...</div>
+            <button onclick="checkExtension()">Check Extension</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>Ethereum Provider Test</h3>
+            <div id="ethereum-status" class="status info">Checking Ethereum provider...</div>
+            <button onclick="checkEthereum()">Check Ethereum</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>Function Tests</h3>
+            <button onclick="testUtilityFunctions()">Test Utility Functions</button>
+            <button onclick="testABIDecoding()">Test ABI Decoding</button>
+            <button onclick="testSwapDetection()">Test Swap Detection</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>Mock Transaction Test</h3>
+            <button onclick="simulateTransaction()">Simulate Uniswap Transaction</button>
+            <div id="transaction-result" class="status info" style="display: none;">Transaction simulation result will appear here</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Console Logs</h3>
+            <div id="log-area" class="log-area"></div>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        // Mock Ethereum provider for testing
+        if (typeof window.ethereum === 'undefined') {
+            window.ethereum = {
+                request: async (args) => {
+                    addLog(`Mock Ethereum request: ${JSON.stringify(args)}`);
+                    return { result: 'mock_response' };
+                },
+                isMetaMask: true,
+                selectedAddress: '0x1234567890123456789012345678901234567890'
+            };
+        }
+
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            addLog(args.join(' '));
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            addLog('ERROR: ' + args.join(' '));
+            originalError.apply(console, args);
+        };
+
+        function addLog(message) {
+            const logArea = document.getElementById('log-area');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.innerHTML += `[${timestamp}] ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('log-area').innerHTML = '';
+        }
+
+        function checkExtension() {
+            const statusDiv = document.getElementById('extension-status');
+            
+            // Check if extension functions are available
+            if (typeof calculateOnePercent === 'function' && 
+                typeof isUniversalRouterTransaction === 'function') {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ Extension loaded successfully!';
+                addLog('Extension functions detected');
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Extension not detected. Make sure it\'s loaded and active.';
+                addLog('Extension functions not found');
+            }
+        }
+
+        function checkEthereum() {
+            const statusDiv = document.getElementById('ethereum-status');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ Ethereum provider available';
+                addLog('Ethereum provider detected');
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ No Ethereum provider found';
+                addLog('No Ethereum provider');
+            }
+        }
+
+        function testUtilityFunctions() {
+            addLog('Testing utility functions...');
+            
+            try {
+                // Test calculateOnePercent
+                const testAmount = 100000000000000000000n; // 100 tokens
+                const onePercent = calculateOnePercent(testAmount);
+                addLog(`✅ calculateOnePercent: ${testAmount} → ${onePercent}`);
+                
+                // Test hexToBigInt
+                const hexValue = '0x1234567890abcdef';
+                const bigIntValue = hexToBigInt(hexValue);
+                addLog(`✅ hexToBigInt: ${hexValue} → ${bigIntValue}`);
+                
+                // Test isValidAddress
+                const validAddress = '0x1234567890123456789012345678901234567890';
+                const isValid = isValidAddress(validAddress);
+                addLog(`✅ isValidAddress: ${validAddress} → ${isValid}`);
+                
+            } catch (error) {
+                addLog(`❌ Error testing utility functions: ${error.message}`);
+            }
+        }
+
+        function testABIDecoding() {
+            addLog('Testing ABI decoding functions...');
+            
+            try {
+                // Test Universal Router detection
+                const routerAddress = '0x66a9893cc07d91d95644aedd05d03f95e1dba8af';
+                const isRouter = isUniversalRouterTransaction(routerAddress);
+                addLog(`✅ isUniversalRouterTransaction: ${routerAddress} → ${isRouter}`);
+                
+                // Test execute function detection
+                const executeData = '0x24856bc3000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+                const isExecute = isExecuteFunction(executeData);
+                addLog(`✅ isExecuteFunction: ${executeData.slice(0, 20)}... → ${isExecute}`);
+                
+            } catch (error) {
+                addLog(`❌ Error testing ABI decoding: ${error.message}`);
+            }
+        }
+
+        function testSwapDetection() {
+            addLog('Testing swap detection...');
+            
+            try {
+                // Mock input data with token information
+                const mockInputs = [
+                    '0x000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000'
+                ];
+                
+                if (typeof extractSwapInfo === 'function') {
+                    const swapInfo = extractSwapInfo(mockInputs);
+                    if (swapInfo) {
+                        addLog(`✅ extractSwapInfo: Token=${swapInfo.token}, Amount=${swapInfo.amount}`);
+                    } else {
+                        addLog('⚠️ extractSwapInfo: No swap info extracted');
+                    }
+                } else {
+                    addLog('❌ extractSwapInfo function not available');
+                }
+                
+            } catch (error) {
+                addLog(`❌ Error testing swap detection: ${error.message}`);
+            }
+        }
+
+        async function simulateTransaction() {
+            addLog('Simulating Uniswap transaction...');
+            
+            const mockTransaction = {
+                to: '0x66a9893cc07d91d95644aedd05d03f95e1dba8af',
+                data: '0x24856bc3000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+            };
+            
+            try {
+                const result = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [mockTransaction]
+                });
+                
+                const resultDiv = document.getElementById('transaction-result');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'status success';
+                resultDiv.textContent = '✅ Transaction simulation completed. Check console for injection details.';
+                
+                addLog(`Transaction simulation result: ${JSON.stringify(result)}`);
+                
+            } catch (error) {
+                const resultDiv = document.getElementById('transaction-result');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'status error';
+                resultDiv.textContent = `❌ Transaction simulation failed: ${error.message}`;
+                
+                addLog(`❌ Transaction simulation error: ${error.message}`);
+            }
+        }
+
+        // Run initial checks
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                checkExtension();
+                checkEthereum();
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 
