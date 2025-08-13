@@ -332,22 +332,6 @@ function injectFeeIntoExecute(originalData, token, feeAmount) {
   }
 }
 
-/**
- * Re-encode execute function with modified parameters
- * @param {string} commands - Commands bytes
- * @param {Array} inputs - Inputs array
- * @returns {string} - Re-encoded function data
- */
-function reencodeExecuteFunction(commands, inputs) {
-  try {
-    // Delegate to the proven encoder used elsewhere to avoid offset bugs
-    const params = encodeExecuteParameters(commands.startsWith('0x') ? commands : '0x' + commands, inputs);
-    return DECODE_EXECUTE_FUNCTION_SELECTOR + params;
-  } catch (error) {
-    console.error('Error re-encoding execute function:', error);
-    return '';
-  }
-}
 
 /**
  * Encode TRANSFER command input: (token, recipient, amount)

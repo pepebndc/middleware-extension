@@ -1,0 +1,4 @@
+extension/build/
+extension/dist/
+extension/*.zip
+*.zip

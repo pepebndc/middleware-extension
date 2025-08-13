@@ -18,14 +18,14 @@
         "http://localhost/*",
         "https://localhost/*"
       ],
-      "js": ["utils.js", "decode.js", "injector.js"],
+      "js": ["ethers.min.js", "utils.js", "decode.js", "injector.js"],
       "run_at": "document_start",
       "world": "MAIN"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["utils.js", "decode.js", "injector.js"],
+      "resources": ["ethers.min.js", "utils.js", "decode.js", "injector.js"],
       "matches": [
         "https://app.uniswap.org/*",
         "file:///*",
@@ -34,4 +34,5 @@
       ]
     }
   ]
+
 }

